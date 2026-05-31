@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6">
+    
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-8 shadow-md">
+        <h2 class="text-xl font-bold text-white mb-2 tracking-wide">Central Tournament Operations</h2>
+        <p class="text-xs text-slate-400 mb-6 leading-relaxed">
+            Triggering the tournament locks the repository state, pairs every group's active bot file into round-robin matches, runs the 20-round iterative loop with a 5% inflation factor, and updates the leaderboard profiles.
+        </p>
+        
+        {% if message %}
+            <div class="bg-slate-950 border border-indigo-500/30 text-indigo-300 p-4 rounded-lg mb-6 font-mono text-xs">
+                {{ message }}
+            </div>
+        {% endif %}
+
+        <form method="POST">
+            <button type="submit" name="run_tournament" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold p-4 rounded-xl shadow-lg transition text-sm uppercase tracking-wider font-mono">
+                ⚡ Fire Tournament Iteration Sweep ⚡
+            </button>
+        </form>
+    </div>
+
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-md">
+        <h3 class="text-md font-bold text-white mb-1">Roster Upload & Readiness Status</h3>
+        <p class="text-xs text-slate-400 mb-4">Verification monitor checking which team has currently selected a valid script file for execution.</p>
+        
+        <div class="overflow-hidden rounded-lg border border-slate-800">
+            <table class="w-full text-left text-xs font-mono">
+                <thead class="bg-slate-950 text-slate-400 border-b border-slate-800">
+                    <tr>
+                        <th class="p-4">Group Name</th>
+                        <th class="p-4">Active Deployment Target</th>
+                        <th class="p-4 text-right">Readiness</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800 bg-slate-900/50">
+                    {% for team in teams %}
+                    <tr>
+                        <td class="p-4 font-bold text-slate-200">{{ team.username }}</td>
+                        <td class="p-4 text-slate-400">
+                            {% if team.filename %}
+                                <span class="text-slate-300 font-mono text-xs">{{ team.filename }}</span>
+                            {% else %}
+                                <span class="text-slate-600 italic">None (Will default to min choices)</span>
+                            {% endif %}
+                        </td>
+                        <td class="p-4 text-right">
+                            {% if team.filename %}
+                                <span class="text-emerald-400 font-semibold bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-900/50 text-[10px]">READY</span>
+                            {% else %}
+                                <span class="text-rose-400 font-semibold bg-rose-950/40 px-2 py-0.5 rounded border border-rose-900/50 text-[10px]">EMPTY</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

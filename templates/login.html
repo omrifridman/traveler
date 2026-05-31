@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-md mx-auto my-16">
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-8 shadow-2xl">
+        <div class="text-center mb-8">
+            <h2 class="text-2xl font-bold tracking-tight text-white">Sign In to Your Group</h2>
+            <p class="text-sm text-slate-400 mt-2">Enter credentials to upload and deploy your bot scripts.</p>
+        </div>
+        
+        <form method="POST" class="space-y-5">
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Group / Username</label>
+                <input type="text" name="username" required class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 focus:outline-none focus:border-indigo-500 text-white transition text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Password</label>
+                <input type="password" name="password" required class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 focus:outline-none focus:border-indigo-500 text-white transition text-sm">
+            </div>
+            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium p-3 rounded-lg transition text-sm shadow-lg shadow-indigo-600/10">
+                Authenticate Connection
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

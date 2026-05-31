@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    
+    <div class="space-y-6">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-md">
+            <h3 class="text-md font-bold text-white mb-2">Deploy Source File</h3>
+            <p class="text-xs text-slate-400 mb-4">Upload your iteration script. Multi-version deployment allowed.</p>
+            
+            <form method="POST" enctype="multipart/form-data" class="space-y-4">
+                <input type="file" name="code_file" required class="block w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-slate-200 hover:file:bg-slate-700 cursor-pointer">
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2 px-4 rounded-lg transition text-xs shadow">
+                    Upload Module (.py)
+                </button>
+            </form>
+        </div>
+
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-md text-xs space-y-4">
+            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Tournament Specifications</h3>
+            <div class="border-b border-slate-800 pb-2">
+                <span class="text-slate-400 block font-semibold">Lower Bounds ($L$):</span>
+                <span class="font-mono text-indigo-400 text-sm">2</span>
+            </div>
+            <div class="border-b border-slate-800 pb-2">
+                <span class="text-slate-400 block font-semibold">Upper Bounds ($H$):</span>
+                <span class="font-mono text-indigo-400 text-sm">100</span>
+            </div>
+            <div class="border-b border-slate-800 pb-2">
+                <span class="text-slate-400 block font-semibold">Penalty Bonus ($R$):</span>
+                <span class="font-mono text-indigo-400 text-sm">2</span>
+            </div>
+            <div>
+                <span class="text-slate-400 block font-semibold">Inflation Decay Rate:</span>
+                <span class="font-mono text-amber-500 text-sm">5.0% / round</span>
+                <p class="text-[11px] text-slate-500 mt-1">Real payout value decays relative to game time sequence. Cooperation drops if value discounts heavily.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="lg:col-span-2 space-y-6">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-md">
+            <h3 class="text-lg font-bold text-white mb-1">Your Script Repository</h3>
+            <p class="text-xs text-slate-400 mb-6">Manage versions. Select which code script is currently active for the upcoming round-robin tournament.</p>
+            
+            <div class="overflow-hidden rounded-lg border border-slate-800">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-slate-950 text-slate-400 font-mono border-b border-slate-800">
+                        <tr>
+                            <th class="p-4">Script Filename</th>
+                            <th class="p-4 text-center">Status</th>
+                            <th class="p-4 text-right">Operations</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800">
+                        {% for sub in submissions %}
+                        <tr class="hover:bg-slate-800/40 transition">
+                            <td class="p-4 font-mono text-slate-200">{{ sub.filename }}</td>
+                            <td class="p-4 text-center">
+                                {% if sub.is_active %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-950 text-emerald-400 border border-emerald-800">Active Match Bot</span>
+                                {% else %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-800 text-slate-500">Standby</span>
+                                {% endif %}
+                            </td>
+                            <td class="p-4 text-right space-x-2">
+                                {% if not sub.is_active %}
+                                    <a href="/dashboard?action=activate&sub_id={{ sub.id }}" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded transition">Deploy</a>
+                                {% endif %}
+                                <button onclick="testSandbox('{{ sub.id }}')" class="bg-indigo-950 text-indigo-400 border border-indigo-900 hover:bg-indigo-900 px-2.5 py-1 rounded transition">Diagnostic Test</button>
+                                <a href="/dashboard?action=delete&sub_id={{ sub.id }}" class="text-rose-400 hover:text-rose-300 px-1 py-1 rounded transition">Purge</a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="3" class="p-8 text-center text-slate-500 font-mono">No scripts uploaded yet. Drop a standard .py module above to begin.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div id="sandbox-result" class="hidden mt-6 p-5 bg-slate-950 border border-slate-800 rounded-lg font-mono text-xs">
+                <div class="flex justify-between border-b border-slate-800 pb-2 mb-3">
+                    <span class="text-indigo-400 font-bold uppercase tracking-wider">Diagnostic Sandbox Result</span>
+                    <span class="text-slate-500">vs. System Tit-For-Tat</span>
+                </div>
+                <div id="sandbox-scores" class="mb-4 text-sm font-semibold"></div>
+                <div id="sandbox-console" class="max-h-52 overflow-y-auto space-y-1.5 text-slate-400 pr-2"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function testSandbox(subId) {
+    const formData = new FormData();
+    formData.append('sub_id', subId);
+    
+    fetch('/sandbox', { method: 'POST', body: formData })
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById('sandbox-result').classList.remove('hidden');
+        document.getElementById('sandbox-scores').innerHTML = `Your Score Yield: <span class="text-emerald-400">${data.your_score}</span> &nbsp;|&nbsp; Baseline Opponent Score: <span class="text-slate-400">${data.baseline_score}</span>`;
+        
+        let consoleHtml = '';
+        data.logs.forEach(r => {
+            consoleHtml += `<div class="flex justify-between border-b border-slate-900 py-1">
+                <span>[Round ${r.round.toString().padStart(2, '0')}] You Bid: <b class="text-indigo-300">${r.move1}</b> &nbsp; Opponent Bid: <b class="text-slate-300">${r.move2}</b></span>
+                <span class="text-slate-500">Real Payout Values: (${r.payoff1}, ${r.payoff2})</span>
+            </div>`;
+        });
+        document.getElementById('sandbox-console').innerHTML = consoleHtml;
+    });
+}
+</script>
+{% endblock %}
