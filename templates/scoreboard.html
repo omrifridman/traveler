@@ -1,27 +1,27 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-    
-    <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-md">
-        <h3 class="text-lg font-bold text-white mb-1">Global Standing Leaderboard</h3>
-        <p class="text-xs text-slate-400 mb-6">Cumulative real-value scores across all past matches.</p>
-        
-        <div class="space-y-3">
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg">
+        <h3 class="text-lg font-bold text-white mb-5">Current Standings</h3>
+        <div class="space-y-3 text-sm">
             {% for user in users %}
-            <div class="bg-slate-950 border border-slate-800 p-4 rounded-lg flex flex-col space-y-2">
+            <div class="bg-slate-950 border border-slate-800 p-4 rounded-lg flex flex-col space-y-2 shadow-inner">
                 <div class="flex justify-between items-center">
-                    <span class="font-mono text-sm font-bold text-slate-200">
-                        <span class="text-slate-500 mr-1">#{{ loop.index }}</span> {{ user.username }}
+                    <span class="font-bold text-slate-200 text-base">
+                        <span class="text-slate-500 mr-1.5">#{{ loop.index }}</span>{{ user.username | clean_name }}
                     </span>
-                    <span class="text-indigo-400 font-mono font-bold text-md">{{ user.score | round(2) }}</span>
+                    <span class="text-indigo-400 font-bold text-lg">{{ user.score | round(2) }}</span>
                 </div>
-                
-                <div class="flex items-center justify-between pt-1 border-t border-slate-900 text-[11px]">
-                    <span class="text-slate-500 font-medium">Ready Bot Profile:</span>
+                <div class="flex justify-between items-center border-t border-slate-800 pt-2">
+                    <span class="text-slate-500 font-medium text-xs">Deployed Bot:</span>
                     {% if user.filename %}
-                        <span class="text-emerald-400 font-mono font-semibold bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-900/50">{{ user.filename }}</span>
+                        <span class="font-mono text-emerald-400 font-bold bg-emerald-950/40 border border-emerald-500/30 px-2 py-0.5 rounded text-[11px]">
+                            {{ user.filename }}
+                        </span>
                     {% else %}
-                        <span class="text-amber-500 font-mono italic">No bot deployed</span>
+                        <span class="font-mono text-rose-400 font-bold bg-rose-950/40 border border-rose-500/30 px-2 py-0.5 rounded text-[11px]">
+                            NO BOT DEPLOYED
+                        </span>
                     {% endif %}
                 </div>
             </div>
@@ -29,35 +29,26 @@
         </div>
     </div>
 
-    <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-md">
-        <h3 class="text-lg font-bold text-white mb-1">Historical Match Matrix Log</h3>
-        <p class="text-xs text-slate-400 mb-6 font-mono">Real-time recording stream of historical server combat rounds.</p>
-        
-        <div class="space-y-3 max-h-[600px] overflow-y-auto pr-2">
+    <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg">
+        <h3 class="text-lg font-bold text-white mb-5">Historical Match Matrix</h3>
+        <div class="space-y-3 max-h-[550px] overflow-y-auto pr-2">
             {% for match in matches %}
-            <div class="bg-slate-950 border border-slate-800 p-4 rounded-lg flex justify-between items-center hover:border-slate-700 transition">
-                <div class="space-y-1">
-                    <div class="text-sm font-mono text-slate-300">
-                        <span class="font-bold text-slate-100">{{ match.user1 }}</span> 
-                        <span class="text-xs text-slate-600 px-1">VS</span> 
-                        <span class="font-bold text-slate-100">{{ match.user2 }}</span>
-                    </div>
-                    <div class="text-[11px] text-slate-500">Match Sequence Log Identifier Token: #{{ match.id }}</div>
+            <div class="bg-slate-950 border border-slate-800 p-4 rounded-lg flex justify-between items-center hover:border-indigo-500/40 transition shadow-inner">
+                <div>
+                    <span class="font-bold text-slate-200 text-sm">{{ match.user1 | clean_name }}</span>
+                    <span class="text-slate-500 font-semibold px-1.5 text-xs">VS</span>
+                    <span class="font-bold text-slate-200 text-sm">{{ match.user2 | clean_name }}</span>
+                    <div class="text-slate-500 mt-0.5 text-[11px] font-mono">Match Entry Profile: #{{ match.id }}</div>
                 </div>
-                
-                <div class="flex items-center space-x-6">
-                    <div class="text-right font-mono text-xs space-y-0.5">
-                        <div class="text-emerald-400 font-semibold">+{{ match.score1 | round(2) }}</div>
-                        <div class="text-indigo-400 font-semibold">+{{ match.score2 | round(2) }}</div>
+                <div class="flex items-center space-x-5">
+                    <div class="text-right text-xs font-bold font-mono tracking-wide">
+                        <div class="text-emerald-400">+{{ match.score1 | round(1) }}</div>
+                        <div class="text-indigo-400">+{{ match.score2 | round(1) }}</div>
                     </div>
-                    <a href="/visualizer/{{ match.id }}" class="bg-slate-900 border border-slate-800 text-slate-300 px-3 py-1.5 rounded-md text-xs font-medium hover:border-indigo-500 hover:text-indigo-400 transition">
-                        Run Analysis
+                    <a href="/visualizer/{{ match.id }}" class="bg-slate-800 border border-slate-700 px-3 py-1.5 rounded text-slate-300 hover:text-white hover:bg-indigo-600 hover:border-indigo-500 transition font-semibold text-xs shadow">
+                        Analyze
                     </a>
                 </div>
-            </div>
-            {% else %}
-            <div class="text-center py-12 text-slate-500 font-mono text-xs">
-                Waiting for the server administrator to execute the first tournament iteration sweep.
             </div>
             {% endfor %}
         </div>

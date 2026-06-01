@@ -1,55 +1,79 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="max-w-4xl mx-auto space-y-6">
-    
-    <div class="bg-slate-900 border border-slate-800 rounded-xl p-8 shadow-md">
-        <h2 class="text-xl font-bold text-white mb-2 tracking-wide">Central Tournament Operations</h2>
-        <p class="text-xs text-slate-400 mb-6 leading-relaxed">
-            Triggering the tournament locks the repository state, pairs every group's active bot file into round-robin matches, runs the 20-round iterative loop with a 5% inflation factor, and updates the leaderboard profiles.
-        </p>
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg">
+        <h2 class="text-lg font-bold text-white mb-5 tracking-wide">Configure & Run Tournament</h2>
         
         {% if message %}
-            <div class="bg-slate-950 border border-indigo-500/30 text-indigo-300 p-4 rounded-lg mb-6 font-mono text-xs">
+            <div class="bg-indigo-950/50 border border-indigo-500 text-indigo-300 p-3 rounded-lg mb-6 font-mono text-xs font-bold">
                 {{ message }}
             </div>
         {% endif %}
 
-        <form method="POST">
-            <button type="submit" name="run_tournament" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold p-4 rounded-xl shadow-lg transition text-sm uppercase tracking-wider font-mono">
-                ⚡ Fire Tournament Iteration Sweep ⚡
+        <form method="POST" class="space-y-5">
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-5">
+                <div class="space-y-1.5">
+                    <label class="block text-slate-400 font-semibold text-xs tracking-wide">Minimum Bid (L)</label>
+                    <input type="number" name="L" value="2" required class="w-full bg-slate-950 border border-slate-800 rounded-md p-2.5 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-white font-mono text-sm transition">
+                </div>
+                <div class="space-y-1.5">
+                    <label class="block text-slate-400 font-semibold text-xs tracking-wide">Maximum Bid (H)</label>
+                    <input type="number" name="H" value="100" required class="w-full bg-slate-950 border border-slate-800 rounded-md p-2.5 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-white font-mono text-sm transition">
+                </div>
+                <div class="space-y-1.5">
+                    <label class="block text-slate-400 font-semibold text-xs tracking-wide">Bonus/Penalty (R)</label>
+                    <input type="number" name="R" value="2" required class="w-full bg-slate-950 border border-slate-800 rounded-md p-2.5 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-white font-mono text-sm transition">
+                </div>
+                <div class="space-y-1.5">
+                    <label class="block text-slate-400 font-semibold text-xs tracking-wide">Inflation Decay Rate</label>
+                    <input type="number" step="0.01" name="inflation" value="0.05" required class="w-full bg-slate-950 border border-slate-800 rounded-md p-2.5 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-white font-mono text-sm transition">
+                </div>
+                <div class="space-y-1.5">
+                    <label class="block text-slate-400 font-semibold text-xs tracking-wide">Rounds per Match</label>
+                    <input type="number" name="rounds" value="20" required class="w-full bg-slate-950 border border-slate-800 rounded-md p-2.5 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-white font-mono text-sm transition">
+                </div>
+                <div class="space-y-1.5">
+                    <label class="block text-slate-400 font-semibold text-xs tracking-wide">Match Series Count</label>
+                    <input type="number" name="match_count" value="50" required class="w-full bg-slate-950 border border-slate-800 rounded-md p-2.5 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-white font-mono text-sm transition">
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-2 py-3 bg-slate-950/50 px-3 rounded-lg border border-slate-800">
+                <input type="checkbox" name="randomize" id="randomize" class="w-4 h-4 rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-indigo-500 cursor-pointer">
+                <label for="randomize" class="text-amber-400 font-semibold text-xs cursor-pointer select-none">
+                    Randomize Game Parameters (Overwrites properties above with random shifts)
+                </label>
+            </div>
+
+            <button type="submit" name="run_tournament" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold p-3 rounded-lg shadow transition text-sm uppercase tracking-wide mt-2">
+                Execute Round Robin Tournament
             </button>
         </form>
     </div>
 
-    <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-md">
-        <h3 class="text-md font-bold text-white mb-1">Roster Upload & Readiness Status</h3>
-        <p class="text-xs text-slate-400 mb-4">Verification monitor checking which team has currently selected a valid script file for execution.</p>
-        
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg">
+        <h3 class="text-lg font-bold text-white mb-4">Group Deployment Readiness</h3>
         <div class="overflow-hidden rounded-lg border border-slate-800">
-            <table class="w-full text-left text-xs font-mono">
+            <table class="w-full text-left text-sm">
                 <thead class="bg-slate-950 text-slate-400 border-b border-slate-800">
                     <tr>
-                        <th class="p-4">Group Name</th>
-                        <th class="p-4">Active Deployment Target</th>
-                        <th class="p-4 text-right">Readiness</th>
+                        <th class="p-3 font-semibold">Group Name</th>
+                        <th class="p-3 font-semibold">Active File Module</th>
+                        <th class="p-3 text-right font-semibold">Operational Status</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-800 bg-slate-900/50">
+                <tbody class="divide-y divide-slate-800 bg-slate-900/30">
                     {% for team in teams %}
-                    <tr>
-                        <td class="p-4 font-bold text-slate-200">{{ team.username }}</td>
-                        <td class="p-4 text-slate-400">
-                            {% if team.filename %}
-                                <span class="text-slate-300 font-mono text-xs">{{ team.filename }}</span>
-                            {% else %}
-                                <span class="text-slate-600 italic">None (Will default to min choices)</span>
-                            {% endif %}
+                    <tr class="hover:bg-slate-800/40 transition">
+                        <td class="p-3 font-bold text-slate-200">{{ team.username | clean_name }}</td>
+                        <td class="p-3 text-slate-400 font-mono text-xs">
+                            {{ team.filename if team.filename else 'No file deployed' }}
                         </td>
-                        <td class="p-4 text-right">
+                        <td class="p-3 text-right">
                             {% if team.filename %}
-                                <span class="text-emerald-400 font-semibold bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-900/50 text-[10px]">READY</span>
+                                <span class="text-emerald-400 font-bold bg-emerald-950/40 px-2 py-1 rounded border border-emerald-500/30 text-[11px] tracking-wide">READY</span>
                             {% else %}
-                                <span class="text-rose-400 font-semibold bg-rose-950/40 px-2 py-0.5 rounded border border-rose-900/50 text-[10px]">EMPTY</span>
+                                <span class="text-rose-400 font-bold bg-rose-950/40 px-2 py-1 rounded border border-rose-500/30 text-[11px] tracking-wide">INCOMPLETE</span>
                             {% endif %}
                         </td>
                     </tr>

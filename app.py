@@ -13,6 +13,12 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+@app.template_filter('clean_name')
+def clean_name_filter(s):
+    if not s: 
+        return ""
+    return s.replace('_', ' ').title()
+
 def get_db():
     conn = sqlite3.connect(DATABASE)
     conn.row_factory = sqlite3.Row
@@ -20,55 +26,24 @@ def get_db():
 
 def init_db():
     with get_db() as db:
-        db.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT UNIQUE,
-                password TEXT,
-                role TEXT DEFAULT 'user',
-                score REAL DEFAULT 0.0
-            )
-        """)
-        db.execute("""
-            CREATE TABLE IF NOT EXISTS submissions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER,
-                filename TEXT,
-                is_active INTEGER DEFAULT 0,
-                FOREIGN KEY(user_id) REFERENCES users(id)
-            )
-        """)
-        db.execute("""
-            CREATE TABLE IF NOT EXISTS tournaments (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        db.execute("""
-            CREATE TABLE IF NOT EXISTS matches (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                tournament_id INTEGER,
-                user1 TEXT,
-                user2 TEXT,
-                score1 REAL,
-                score2 REAL,
-                round_by_round TEXT
-            )
-        """)
-        # Seed default teams
+        db.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT, role TEXT DEFAULT 'user', score REAL DEFAULT 0.0)")
+        db.execute("CREATE TABLE IF NOT EXISTS submissions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, filename TEXT, is_active INTEGER DEFAULT 0, FOREIGN KEY(user_id) REFERENCES users(id))")
+        db.execute("CREATE TABLE IF NOT EXISTS tournaments (id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)")
+        db.execute("CREATE TABLE IF NOT EXISTS matches (id INTEGER PRIMARY KEY AUTOINCREMENT, tournament_id INTEGER, user1 TEXT, user2 TEXT, score1 REAL, score2 REAL, round_by_round TEXT)")
         try:
             db.execute("INSERT INTO users (username, password, role) VALUES ('admin', 'admin123', 'admin')")
             db.execute("INSERT INTO users (username, password, role) VALUES ('team_alpha', 'pass', 'user')")
             db.execute("INSERT INTO users (username, password, role) VALUES ('team_beta', 'pass', 'user')")
-            db.execute("INSERT INTO users (username, password, role) VALUES ('team_gamma', 'pass', 'user')")
-        except:
-            pass
+        except sqlite3.IntegrityError: 
+            pass 
         db.commit()
 
 @app.route('/')
 def index():
-    if 'user_id' not in session:
+    if 'user_id' not in session: 
         return redirect(url_for('login'))
+    if session.get('role') == 'admin': 
+        return redirect(url_for('admin'))
     return redirect(url_for('dashboard'))
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -78,11 +53,15 @@ def login():
         password = request.form['password']
         db = get_db()
         user = db.execute("SELECT * FROM users WHERE username = ? AND password = ?", (username, password)).fetchone()
+        
         if user:
             session['user_id'] = user['id']
             session['username'] = user['username']
             session['role'] = user['role']
+            if user['role'] == 'admin':
+                return redirect(url_for('admin'))
             return redirect(url_for('dashboard'))
+            
         flash("Invalid Credentials")
     return render_template('login.html')
 
@@ -93,22 +72,26 @@ def logout():
 
 @app.route('/dashboard', methods=['GET', 'POST'])
 def dashboard():
-    if 'user_id' not in session: return redirect(url_for('login'))
+    if 'user_id' not in session: 
+        return redirect(url_for('login'))
+    if session.get('role') == 'admin': 
+        return redirect(url_for('admin'))
+    
     db = get_db()
     user_id = session['user_id']
     username = session['username']
-
-    user_dir = os.path.join(app.config['UPLOAD_FOLDER'], username)
-    os.makedirs(user_dir, exist_ok=True)
 
     if request.method == 'POST' and 'code_file' in request.files:
         file = request.files['code_file']
         if file and file.filename.endswith('.py'):
             filename = secure_filename(file.filename)
-            file.save(os.path.join(user_dir, filename))
+            user_folder = os.path.join(app.config['UPLOAD_FOLDER'], username)
+            os.makedirs(user_folder, exist_ok=True)
+            
+            file.save(os.path.join(user_folder, filename))
             db.execute("INSERT INTO submissions (user_id, filename) VALUES (?, ?)", (user_id, filename))
             db.commit()
-            flash("Code uploaded successfully!")
+            flash("Code script uploaded successfully!")
 
     action = request.args.get('action')
     sub_id = request.args.get('sub_id')
@@ -119,8 +102,10 @@ def dashboard():
         elif action == 'delete':
             sub = db.execute("SELECT * FROM submissions WHERE id = ? AND user_id = ?", (sub_id, user_id)).fetchone()
             if sub:
-                try: os.remove(os.path.join(user_dir, sub['filename']))
-                except: pass
+                try: 
+                    os.remove(os.path.join(app.config['UPLOAD_FOLDER'], username, sub['filename']))
+                except OSError: 
+                    pass
                 db.execute("DELETE FROM submissions WHERE id = ?", (sub_id,))
         db.commit()
 
@@ -129,55 +114,129 @@ def dashboard():
 
 @app.route('/sandbox', methods=['POST'])
 def sandbox():
-    if 'user_id' not in session: return "Unauthorized", 403
+    if 'user_id' not in session: 
+        return {"error": "Unauthorized"}, 403
+        
     db = get_db()
-    sub_id = request.form.get('sub_id')
-    sub = db.execute("SELECT * FROM submissions WHERE id = ? AND user_id = ?", (sub_id, session['user_id'])).fetchone()
-    if not sub: return "Submission not found"
+    bot1_id = request.form.get('bot1_id')
+    bot2_id = request.form.get('bot2_id')
+    
+    if not bot1_id or not bot2_id:
+        return {"error": "Please select two bots to run the match."}, 400
+        
+    try:
+        L = int(request.form.get('L') or 2)
+        H = int(request.form.get('H') or 100)
+        R = int(request.form.get('R') or 2)
+        inflation = float(request.form.get('inflation') or 0.05)
+        rounds = int(request.form.get('rounds') or 20)
+    except ValueError:
+        return {"error": "Invalid parameter values."}, 400
 
-    bot_path = os.path.join(app.config['UPLOAD_FOLDER'], session['username'], sub['filename'])
-    mock_bot_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'system_mock')
-    os.makedirs(mock_bot_dir, exist_ok=True)
-    mock_bot_path = os.path.join(mock_bot_dir, 'tit_for_tat.py')
-    with open(mock_bot_path, 'w') as f:
-        f.write("def make_move(my, opp, r, L, H, R, inf):\n    return opp[-1] if r > 0 else H")
+    user_id = session['user_id']
+    username = session['username']
+    
+    def get_bot_path_and_name(bot_id):
+        if bot_id == 'system_tft':
+            mock_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'system_mock')
+            os.makedirs(mock_dir, exist_ok=True)
+            mock_path = os.path.join(mock_dir, 'tit_for_tat.py')
+            with open(mock_path, 'w') as f:
+                f.write("def make_move(my, opp, r, L, H, R, inf):\n    return opp[-1] if r > 0 else H")
+            return mock_path, "🤖 System (Tit-for-Tat)"
+        else:
+            sub = db.execute("SELECT * FROM submissions WHERE id = ? AND user_id = ?", (bot_id, user_id)).fetchone()
+            if not sub: return None, None
+            return os.path.join(app.config['UPLOAD_FOLDER'], username, sub['filename']), sub['filename']
 
-    s1, s2, logs = run_match(bot_path, mock_bot_path)
-    return {"your_score": round(s1, 2), "baseline_score": round(s2, 2), "logs": logs}
+    bot1_path, bot1_name = get_bot_path_and_name(bot1_id)
+    bot2_path, bot2_name = get_bot_path_and_name(bot2_id)
+    
+    if not bot1_path or not bot2_path: 
+        return {"error": "One or both submissions could not be found."}, 404
+
+    try:
+        s1, s2, logs = run_match(bot1_path, bot2_path, L=L, H=H, R=R, inflation=inflation, rounds=rounds)
+    except TypeError as e:
+        return {"error": f"Game Engine Error: Ensure run_match in game_engine.py accepts the exact parameters! Details: {str(e)}"}, 500
+    except Exception as e:
+        return {"error": f"Simulation failed: {str(e)}"}, 500
+    
+    return {
+        "bot1_name": bot1_name,
+        "bot2_name": bot2_name,
+        "score1": round(s1, 2), 
+        "score2": round(s2, 2), 
+        "logs": logs
+    }
 
 @app.route('/scoreboard')
 def scoreboard():
     db = get_db()
-    # Pull all user teams alongside their active file deployment string name
     users = db.execute("""
         SELECT u.username, u.score, s.filename 
         FROM users u 
-        LEFT JOIN submissions s ON u.id = s.user_id AND s.is_active = 1
+        LEFT JOIN submissions s ON u.id = s.user_id AND s.is_active = 1 
         WHERE u.role != 'admin' 
         ORDER BY u.score DESC
     """).fetchall()
+    
     matches = db.execute("SELECT * FROM matches ORDER BY id DESC LIMIT 20").fetchall()
+    
     return render_template('scoreboard.html', users=users, matches=matches)
 
 @app.route('/visualizer/<int:match_id>')
 def visualizer(match_id):
     db = get_db()
     match = db.execute("SELECT * FROM matches WHERE id = ?", (match_id,)).fetchone()
-    return render_template('visualizer.html', match=match)
+    
+    logs = []
+    pairings = []
+    unique_games = []
+    
+    if match:
+        if match['round_by_round']:
+            try:
+                logs = json.loads(match['round_by_round'])
+                # Extract clean sorted list of unique game numbers available in data
+                unique_games = sorted(list(set(log['game'] for log in logs)))
+            except json.JSONDecodeError:
+                logs = []
+
+        # Find all other companion matches inside this exact same round-robin execution
+        pairings = db.execute(
+            "SELECT id, user1, user2, score1, score2 FROM matches WHERE tournament_id = ?", 
+            (match['tournament_id'],)
+        ).fetchall()
+
+    return render_template('visualizer.html', match=match, logs=logs, pairings=pairings, unique_games=unique_games)
 
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
-    if session.get('role') != 'admin': return "Access Denied", 403
+    if session.get('role') != 'admin': 
+        return "Access Denied", 403
+        
     db = get_db()
     message = None
-    if request.method == 'POST' and 'run_tournament' in request.form:
-        message = execute_tournament(DATABASE, app.config['UPLOAD_FOLDER'])
     
-    # Gather up-to-date deployment rosters for administrative logging
+    if request.method == 'POST' and 'run_tournament' in request.form:
+        try:
+            L = int(request.form.get('L') or 2)
+            H = int(request.form.get('H') or 100)
+            R = int(request.form.get('R') or 2)
+            inflation = float(request.form.get('inflation') or 0.05)
+            rounds = int(request.form.get('rounds') or 20)
+            match_count = int(request.form.get('match_count') or 50)
+            randomize = 'randomize' in request.form
+
+            message = execute_tournament(DATABASE, app.config['UPLOAD_FOLDER'], L, H, R, inflation, rounds, match_count, randomize)
+        except ValueError:
+            message = "SYSTEM ERROR: Invalid inputs detected. Please ensure all parameter fields contain valid numbers."
+    
     teams = db.execute("""
-        SELECT u.username, s.filename, s.is_active 
-        FROM users u
-        LEFT JOIN submissions s ON u.id = s.user_id AND s.is_active = 1
+        SELECT u.username, s.filename 
+        FROM users u 
+        LEFT JOIN submissions s ON u.id = s.user_id AND s.is_active = 1 
         WHERE u.role != 'admin'
     """).fetchall()
     

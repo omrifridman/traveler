@@ -2,42 +2,36 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Iterative Traveler's Dilemma Platform</title>
+    <title>Traveler's Dilemma Platform</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col">
-    <nav class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex justify-between items-center shadow-lg">
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col text-sm">
+    <nav class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex justify-between items-center shadow-md">
         <div class="flex items-center space-x-3">
-            <div class="h-3 w-3 bg-indigo-500 rounded-full animate-pulse"></div>
-            <span class="font-mono tracking-wider font-bold text-slate-200">GAME_THEORY_LAB // INFLATION DECAY</span>
+            <span class="tracking-widest font-bold text-slate-200 text-base uppercase">Traveler's Dilemma</span>
         </div>
-        <div class="flex items-center space-x-6 text-sm font-medium text-slate-400">
+        <div class="flex items-center space-x-5 font-medium text-slate-400">
             {% if session.get('user_id') %}
-                <a href="/dashboard" class="hover:text-indigo-400 transition">Dashboard</a>
-                <a href="/scoreboard" class="hover:text-indigo-400 transition">Scoreboard & Pairings</a>
-                {% if session.get('role') == 'admin' %}
-                    <a href="/admin" class="text-indigo-400 hover:text-indigo-300 font-semibold">Admin Panel</a>
+                {% if session.get('role') != 'admin' %}
+                    <a href="/dashboard" class="hover:text-indigo-400 transition">Dashboard</a>
                 {% endif %}
+                
+                <a href="/scoreboard" class="hover:text-indigo-400 transition">Scoreboard</a>
+                
+                {% if session.get('role') == 'admin' %}
+                    <a href="/admin" class="text-indigo-400 hover:text-indigo-300 font-bold tracking-wide">Admin Engine</a>
+                {% endif %}
+                
                 <span class="text-slate-600">|</span>
-                <span class="text-slate-300 font-mono text-xs bg-slate-800 px-2 py-1 rounded">TEAM: {{ session.get('username') }}</span>
-                <a href="/logout" class="text-rose-400 hover:text-rose-300 transition text-xs font-mono">LOGOUT_</a>
+                <span class="text-slate-200 font-semibold bg-slate-800 border border-slate-700 px-2.5 py-1 rounded">
+                    {{ session.get('username') | clean_name }}
+                </span>
+                <a href="/logout" class="text-rose-400 hover:text-rose-300 transition font-bold">Sign Out</a>
             {% endif %}
         </div>
     </nav>
-
-    <main class="flex-grow container mx-auto px-4 py-8 max-w-7xl">
-        {% with messages = get_flashed_messages() %}
-          {% if messages %}
-            <div class="bg-indigo-950/50 border border-indigo-500/30 text-indigo-300 p-4 rounded-lg mb-6 shadow-md text-sm">
-                {{ messages[0] }}
-            </div>
-          {% endif %}
-        {% endwith %}
+    <main class="flex-grow container mx-auto px-5 py-8 max-w-6xl">
         {% block content %}{% endblock %}
     </main>
-
-    <footer class="bg-slate-900/50 border-t border-slate-900 text-center py-4 text-xs text-slate-600 font-mono">
-        Experimental Game Engine Instance • Inflation Discount Vector: δ = 1 / (1 + i)ᵗ
-    </footer>
 </body>
 </html>

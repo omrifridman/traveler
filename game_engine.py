@@ -1,131 +1,175 @@
 import os
-import sys
-import importlib.util
-import json
 import sqlite3
+import importlib.util
+import random
+import json
 
-def run_match(bot1_path, bot2_path, L=2, H=100, R=2, inflation_rate=0.05, total_rounds=20):
-    """Executes a single repeated match between two bot files."""
-    # Dynamic import functions
-    def load_bot_func(path):
+def load_bot(bot_path, module_name):
+    """Dynamically loads a bot script from a given file path."""
+    spec = importlib.util.spec_from_file_location(module_name, bot_path)
+    bot_module = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(bot_module)
+        return bot_module
+    except Exception as e:
+        print(f"Error loading {bot_path}: {e}")
+        return None
+
+def run_match(bot1_path, bot2_path, L=2, H=100, R=2, inflation=0.05, rounds=20):
+    """Simulates a match between two bots over a set number of rounds."""
+    bot1 = load_bot(bot1_path, "bot1")
+    bot2 = load_bot(bot2_path, "bot2")
+
+    if not bot1 or not bot2:
+        raise ValueError("Failed to load one or both bot modules.")
+
+    history1 = []
+    history2 = []
+    total_score1 = 0.0
+    total_score2 = 0.0
+    logs = []
+
+    for r in range(rounds):
+        # Allow bot to return H if they fail or timeout (simple fallback)
         try:
-            spec = importlib.util.spec_from_file_location("bot_mod", path)
-            mod = importlib.util.module_module_from_spec(spec)
-            spec.loader.exec_module(mod)
-            return mod.make_move
-        except Exception as e:
-            # Fallback if bot code crashes or fails to compile
-            return lambda my_h, opp_h, r, l, h, re, inf: l
-
-    func1 = load_bot_func(bot1_path)
-    func2 = load_bot_func(bot2_path)
-
-    h1, h2 = [], []
-    p1_total_score, p2_total_score = 0.0, 0.0
-    round_logs = []
-
-    for r in range(total_rounds):
-        # Calculate contemporary discount factor due to cumulative inflation
-        # Discount factor delta = 1 / (1 + i)^r
-        delta = 1.0 / ((1.0 + inflation_rate) ** r)
-
-        # Execute moves safely wrapped in try/except blocks
+            move1 = bot1.make_move(history1, history2, r, L, H, R, inflation)
+            move1 = max(L, min(H, int(move1)))
+        except Exception:
+            move1 = H
+            
         try:
-            move1 = int(func1(h1.copy(), h2.copy(), r, L, H, R, inflation_rate))
-            if not (L <= move1 <= H): move1 = L
-        except:
-            move1 = L
+            move2 = bot2.make_move(history2, history1, r, L, H, R, inflation)
+            move2 = max(L, min(H, int(move2)))
+        except Exception:
+            move2 = H
 
-        try:
-            move2 = int(func2(h2.copy(), h1.copy(), r, L, H, R, inflation_rate))
-            if not (L <= move2 <= H): move2 = L
-        except:
-            move2 = L
+        history1.append(move1)
+        history2.append(move2)
 
-        # Calculate nominal payoffs based on game rules
+        # Traveler's Dilemma Logic
         if move1 == move2:
-            base1, base2 = move1, move2
+            payoff1 = move1
+            payoff2 = move2
         elif move1 < move2:
-            base1 = move1 + R
-            base2 = move1 - R
+            payoff1 = move1 + R
+            payoff2 = move1 - R
         else:
-            base1 = move2 - R
-            base2 = move2 + R
+            payoff1 = move2 - R
+            payoff2 = move2 + R
 
-        # Apply economic real value discount factor
-        real_payoff1 = base1 * delta
-        real_payoff2 = base2 * delta
+        # Apply Inflation/Decay if applicable
+        current_multiplier = (1.0 - inflation) ** r
+        final_payoff1 = payoff1 * current_multiplier
+        final_payoff2 = payoff2 * current_multiplier
 
-        p1_total_score += real_payoff1
-        p2_total_score += real_payoff2
+        total_score1 += final_payoff1
+        total_score2 += final_payoff2
 
-        h1.append(move1)
-        h2.append(move2)
-
-        round_logs.append({
-            "round": r,
+        logs.append({
+            "round": r + 1,
             "move1": move1,
             "move2": move2,
-            "payoff1": round(real_payoff1, 2),
-            "payoff2": round(real_payoff2, 2)
+            "payoff1": round(final_payoff1, 2),
+            "payoff2": round(final_payoff2, 2)
         })
 
-    return p1_total_score, p2_total_score, round_logs
+    # --- NORMALIZATION LOGIC ---
+    # Calculate the sum of all inflation multipliers over the match
+    sum_multipliers = sum((1.0 - inflation) ** r for r in range(rounds))
+    
+    # Absolute max payoff in a round: Bid H-1, opponent bids H -> (H - 1) + R
+    max_round_payoff = (H - 1 + R) if H > L else H
+    # Absolute min payoff in a round: Bid H, opponent bids L -> L - R
+    min_round_payoff = L - R
+    
+    total_max = max_round_payoff * sum_multipliers
+    total_min = min_round_payoff * sum_multipliers
+    
+    # Map raw scores to a 0-100 Performance Index
+    if total_max > total_min:
+        norm_score1 = 100.0 * (total_score1 - total_min) / (total_max - total_min)
+        norm_score2 = 100.0 * (total_score2 - total_min) / (total_max - total_min)
+    else:
+        norm_score1 = 50.0
+        norm_score2 = 50.0
 
+    return norm_score1, norm_score2, logs
 
-def execute_tournament(db_path, upload_dir):
-    """Finds active scripts, runs round-robin matchups, records metrics."""
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
+def execute_tournament(database_path, upload_folder, L=2, H=100, R=2, inflation=0.05, rounds=20, match_count=50, randomize=False):
+    """Executes a full round-robin tournament between all active bot submissions."""
+    conn = sqlite3.connect(database_path)
+    conn.row_factory = sqlite3.Row
+    db = conn.cursor()
 
-    # Fetch active submission per user
-    cursor.execute("""
-        SELECT u.username, s.filename 
+    active_subs = db.execute("""
+        SELECT u.username, s.filename, u.id as user_id 
         FROM users u 
         JOIN submissions s ON u.id = s.user_id 
-        WHERE s.is_active = 1
-    """)
-    active_bots = cursor.fetchall()
+        WHERE s.is_active = 1 AND u.role != 'admin'
+    """).fetchall()
 
-    if len(active_bots) < 2:
+    if len(active_subs) < 2:
         conn.close()
-        return "Not enough active bots to start a tournament."
+        return "Tournament requires at least 2 active bots to run."
 
-    # Reset standings / profiles
-    scores = {bot[0]: 0.0 for bot in active_bots}
-    match_records = []
+    # Reset scores
+    db.execute("UPDATE users SET score = 0.0")
+    
+    # Create new tournament record
+    db.execute("INSERT INTO tournaments DEFAULT VALUES")
+    tournament_id = db.lastrowid
 
-    # Round Robin Pairings
-    for i in range(len(active_bots)):
-        for j in range(i + 1, len(active_bots)):
-            user1, file1 = active_bots[i]
-            user2, file2 = active_bots[j]
+    # Round Robin
+    for i in range(len(active_subs)):
+        for j in range(i + 1, len(active_subs)):
+            bot1_data = active_subs[i]
+            bot2_data = active_subs[j]
 
-            path1 = os.path.join(upload_dir, user1, file1)
-            path2 = os.path.join(upload_dir, user2, file2)
+            bot1_path = os.path.join(upload_folder, bot1_data['username'], bot1_data['filename'])
+            bot2_path = os.path.join(upload_folder, bot2_data['username'], bot2_data['filename'])
 
-            s1, s2, logs = run_match(path1, path2)
+            match_score1 = 0
+            match_score2 = 0
+            all_logs = []
 
-            scores[user1] += s1
-            scores[user2] += s2
+            # Run series of matches
+            for m in range(match_count):
+                cur_L = L
+                cur_H = H
+                cur_R = R
+                cur_inf = inflation
+                cur_rounds = rounds
 
-            match_records.append((user1, user2, s1, s2, json.dumps(logs)))
+                if randomize:
+                    cur_L = max(2, L + random.randint(-2, 2))
+                    cur_H = max(10, H + random.randint(-20, 20))
+                    cur_R = max(1, R + random.randint(-1, 2))
+                    cur_inf = max(0.0, inflation + random.uniform(-0.02, 0.02))
+                    cur_rounds = max(5, rounds + random.randint(-5, 10))
 
-    # Record Tournament metadata entry
-    cursor.execute("INSERT INTO tournaments DEFAULT VALUES")
-    tournament_id = cursor.lastrowid
+                s1, s2, logs = run_match(bot1_path, bot2_path, cur_L, cur_H, cur_R, cur_inf, cur_rounds)
+                match_score1 += s1
+                match_score2 += s2
+                
+                # Append game number to logs for tracking in visualizer
+                for log_entry in logs:
+                    log_entry['game'] = m + 1
+                all_logs.extend(logs)
 
-    # Record individual match summaries
-    for m in match_records:
-        cursor.execute("""
-            INSERT INTO matches (tournament_id, user1, user2, score1, score2, round_by_round)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (tournament_id, m[0], m[1], m[2], m[3], m[4]))
+            # Average scores over match count
+            avg_score1 = match_score1 / match_count
+            avg_score2 = match_score2 / match_count
 
-    # Persist updated global leaderboards
-    for username, total_score in scores.items():
-        cursor.execute("UPDATE users SET score = score + ? WHERE username = ?", (total_score, username))
+            # Log Match with JSON dumped logs
+            db.execute(
+                "INSERT INTO matches (tournament_id, user1, user2, score1, score2, round_by_round) VALUES (?, ?, ?, ?, ?, ?)",
+                (tournament_id, bot1_data['username'], bot2_data['username'], avg_score1, avg_score2, json.dumps(all_logs))
+            )
+
+            # Update User Scores
+            db.execute("UPDATE users SET score = score + ? WHERE id = ?", (avg_score1, bot1_data['user_id']))
+            db.execute("UPDATE users SET score = score + ? WHERE id = ?", (avg_score2, bot2_data['user_id']))
 
     conn.commit()
     conn.close()
-    return f"Tournament #{tournament_id} executed successfully!"
+    return "Tournament executed successfully!"
