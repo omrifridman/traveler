@@ -30,32 +30,44 @@ def run_match(bot1_path, bot2_path, L=2, H=100, R=2, inflation=0.05, rounds=20):
     logs = []
 
     for r in range(rounds):
-        # Allow bot to return H if they fail or timeout (simple fallback)
+        # 1. Execute Bot 1
         try:
             move1 = bot1.make_move(history1, history2, r, L, H, R, inflation)
             move1 = max(L, min(H, int(move1)))
+            history1.append(move1)
         except Exception:
-            move1 = H
-            
+            move1 = "ERROR"
+            history1.append(H) # Fallback so the opponent doesn't crash reading history
+
+        # 2. Execute Bot 2
         try:
             move2 = bot2.make_move(history2, history1, r, L, H, R, inflation)
             move2 = max(L, min(H, int(move2)))
+            history2.append(move2)
         except Exception:
-            move2 = H
+            move2 = "ERROR"
+            history2.append(H)
 
-        history1.append(move1)
-        history2.append(move2)
-
-        # Traveler's Dilemma Logic
-        if move1 == move2:
-            payoff1 = move1
-            payoff2 = move2
-        elif move1 < move2:
-            payoff1 = move1 + R
-            payoff2 = move1 - R
+        # 3. Payoff Logic with Error Penalty
+        if move1 == "ERROR" and move2 == "ERROR":
+            payoff1, payoff2 = 0, 0
+        elif move1 == "ERROR":
+            payoff1 = 0
+            payoff2 = H + R  # Give max points to the other player
+        elif move2 == "ERROR":
+            payoff1 = H + R  # Give max points to the other player
+            payoff2 = 0
         else:
-            payoff1 = move2 - R
-            payoff2 = move2 + R
+            # Normal Traveler's Dilemma Logic
+            if move1 == move2:
+                payoff1 = move1
+                payoff2 = move2
+            elif move1 < move2:
+                payoff1 = move1 + R
+                payoff2 = move1 - R
+            else:
+                payoff1 = move2 - R
+                payoff2 = move2 + R
 
         # Apply Inflation/Decay if applicable
         current_multiplier = (1.0 - inflation) ** r

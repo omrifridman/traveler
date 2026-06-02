@@ -77,8 +77,23 @@
                         {% for log in logs %}
                         <tr class="game-row hidden hover:bg-slate-800/30 transition" data-game="{{ log.game }}">
                             <td class="p-4 text-slate-400 font-mono text-center">R{{ log.round }}</td>
-                            <td class="p-4 text-emerald-300 font-bold font-mono text-center">{{ log.move1 }}</td>
-                            <td class="p-4 text-indigo-300 font-bold font-mono text-center">{{ log.move2 }}</td>
+                            
+                            <td class="p-4 text-emerald-300 font-bold font-mono text-center">
+                                {% if log.move1 == 'ERROR' %}
+                                    <span class="text-rose-500">ERROR</span>
+                                {% else %}
+                                    {{ log.move1 }}
+                                {% endif %}
+                            </td>
+                            
+                            <td class="p-4 text-indigo-300 font-bold font-mono text-center">
+                                {% if log.move2 == 'ERROR' %}
+                                    <span class="text-rose-500">ERROR</span>
+                                {% else %}
+                                    {{ log.move2 }}
+                                {% endif %}
+                            </td>
+                            
                             <td class="p-4 text-emerald-400 font-mono text-right">+{{ "%.2f"|format(log.payoff1) }}</td>
                             <td class="p-4 text-indigo-400 font-mono text-right">+{{ "%.2f"|format(log.payoff2) }}</td>
                         </tr>
