@@ -85,37 +85,48 @@ def execute_nim_tournament(database_path, upload_folder, num_stacks=2, p1_pts=4,
     db.execute("INSERT INTO tournaments DEFAULT VALUES")
     tournament_id = db.lastrowid
 
-    # Play every combination of 3 bots
-    for trio in itertools.combinations(active_subs, 3):
-        bot_paths = [os.path.join(upload_folder, b['username'], b['filename']) for b in trio]
-        match_scores = [0, 0, 0]
+    # 1. Generate all possible trios and SHUFFLE the match order
+    all_pairings = list(itertools.combinations(active_subs, 3))
+    random.shuffle(all_pairings)
+
+    for trio in all_pairings:
+        # Keep original references for the database record
+        u1, u2, u3 = trio[0], trio[1], trio[2]
+        
+        match_scores = {u1['user_id']: 0, u2['user_id']: 0, u3['user_id']: 0}
         all_logs = []
 
         for m in range(match_count):
-            # Rotate starting player each match for fairness
-            rotated_paths = bot_paths[m % 3:] + bot_paths[:m % 3]
+            # 2. Randomize the seat order (1st, 2nd, 3rd) for this specific game
+            current_game_bots = [u1, u2, u3]
+            random.shuffle(current_game_bots)
             
-            # Map the rotated score outputs back to the absolute 0,1,2 user indices
-            rotated_indices = [(i - (m % 3)) % 3 for i in range(3)] 
+            bot_paths = [os.path.join(upload_folder, b['username'], b['filename']) for b in current_game_bots]
 
-            scores, logs = run_nim_match(*rotated_paths, num_stacks, p1_pts, p2_pts, p3_pts)
+            scores, logs = run_nim_match(bot_paths[0], bot_paths[1], bot_paths[2], num_stacks, p1_pts, p2_pts, p3_pts)
 
-            for i in range(3):
-                match_scores[i] += scores[rotated_indices[i]]
+            # Map scores back to the correct users, regardless of what seat they played in
+            match_scores[current_game_bots[0]['user_id']] += scores[0]
+            match_scores[current_game_bots[1]['user_id']] += scores[1]
+            match_scores[current_game_bots[2]['user_id']] += scores[2]
 
             for log in logs:
                 log['game'] = m + 1
             all_logs.extend(logs)
 
-        avg_scores = [s / match_count for s in match_scores]
+        # Average the accumulated scores
+        avg_score1 = match_scores[u1['user_id']] / match_count
+        avg_score2 = match_scores[u2['user_id']] / match_count
+        avg_score3 = match_scores[u3['user_id']] / match_count
 
         db.execute(
             "INSERT INTO matches (tournament_id, game_mode, user1, user2, user3, score1, score2, score3, round_by_round) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (tournament_id, 'nim', trio[0]['username'], trio[1]['username'], trio[2]['username'], avg_scores[0], avg_scores[1], avg_scores[2], json.dumps(all_logs))
+            (tournament_id, 'nim', u1['username'], u2['username'], u3['username'], avg_score1, avg_score2, avg_score3, json.dumps(all_logs))
         )
 
-        for i in range(3):
-            db.execute("UPDATE users SET score = score + ? WHERE id = ?", (avg_scores[i], trio[i]['user_id']))
+        db.execute("UPDATE users SET score = score + ? WHERE id = ?", (avg_score1, u1['user_id']))
+        db.execute("UPDATE users SET score = score + ? WHERE id = ?", (avg_score2, u2['user_id']))
+        db.execute("UPDATE users SET score = score + ? WHERE id = ?", (avg_score3, u3['user_id']))
 
     conn.commit()
     conn.close()
