@@ -51,6 +51,7 @@ def init_db():
             db.execute("INSERT INTO users (username, password, role) VALUES ('sasha', '337914147', 'user')")
             db.execute("INSERT INTO users (username, password, role) VALUES ('m00li', '215973181', 'user')")
             db.execute("INSERT INTO users (username, password, role) VALUES ('itai', '328292586', 'user')")
+            db.execute("INSERT INTO users (username, password, role) VALUES ('demo', 'p', 'user')")
         except sqlite3.IntegrityError: 
             pass
         db.commit()
