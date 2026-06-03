@@ -12,17 +12,7 @@ def make_move(my_history, opponent_history, round_num, L, H, R, inflation_rate):
     Returns:
     - An integer between L and H inclusive.
     """
-    # Simple strategy: Play Tit-for-Tat if opponent undercut last round, otherwise play H
-    if round_num == 0:
-        return H
-        
-    last_opponent_move = opponent_history[-1]
-    last_my_move = my_history[-1]
-    
-    if last_opponent_move < last_my_move:
-        return max(L, last_opponent_move)
-    
-    return H
+    return H - 5 * round_num
 
 def make_nim_move(stacks):
     # E.g. [1200, 1500] 

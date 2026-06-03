@@ -179,7 +179,7 @@ function runPractice() {
         if(data.mode === 'nim') {
             scoreHtml = `${data.bot1}: <span class="text-emerald-400">${data.s1}</span> | ${data.bot2}: <span class="text-indigo-400">${data.s2}</span> | ${data.bot3}: <span class="text-amber-400">${data.s3}</span>`;
         } else {
-            scoreHtml = `${data.bot1}: <span class="text-emerald-400">${data.score1}</span> &nbsp;|&nbsp; ${data.bot2}: <span class="text-indigo-400">${data.score2}</span>`;
+            scoreHtml = `${data.bot1}: <span class="text-emerald-400">${data.s1}</span> &nbsp;|&nbsp; ${data.bot2}: <span class="text-indigo-400">${data.s2}</span>`;
         }
         document.getElementById('sandbox-scores').innerHTML = scoreHtml;
         
