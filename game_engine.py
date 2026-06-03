@@ -3,6 +3,124 @@ import sqlite3
 import importlib.util
 import random
 import json
+import itertools
+
+def run_nim_match(bot1_path, bot2_path, bot3_path, num_stacks, p1_pts, p2_pts, p3_pts):
+    bots = [load_bot(bot1_path, "bot1"), load_bot(bot2_path, "bot2"), load_bot(bot3_path, "bot3")]
+    if not all(bots): 
+        raise ValueError("Failed to load one or more bots.")
+
+    # Initialize stacks with > 1000 items
+    stacks = [random.randint(1001, 2000) for _ in range(num_stacks)]
+    turn = 0
+    logs = []
+
+    while sum(stacks) > 0:
+        current_bot = bots[turn % 3]
+        try:
+            # Bot function: make_nim_move(stacks_list) -> returns (stack_index, amount_to_take)
+            stack_idx, amount = current_bot.make_nim_move(list(stacks))
+            stack_idx, amount = int(stack_idx), int(amount)
+
+            if 0 <= stack_idx < num_stacks and 0 < amount <= stacks[stack_idx]:
+                stacks[stack_idx] -= amount
+                logs.append({
+                    "round": turn + 1, 
+                    "player": (turn % 3) + 1, 
+                    "stack_idx": stack_idx, 
+                    "amount": amount, 
+                    "remaining": list(stacks)
+                })
+            else:
+                raise ValueError("Invalid move")
+        except Exception as e:
+            # Auto-play penalty: take 1 from the first available stack so the game doesn't stall
+            for i in range(num_stacks):
+                if stacks[i] > 0:
+                    stacks[i] -= 1
+                    logs.append({
+                        "round": turn + 1, 
+                        "player": (turn % 3) + 1, 
+                        "stack_idx": i, 
+                        "amount": 1, 
+                        "remaining": list(stacks), 
+                        "error": str(e)
+                    })
+                    break
+
+        if sum(stacks) == 0:
+            break
+        turn += 1
+
+    # Winner is the last one to take. 2nd place is the next player. 3rd is the final player.
+    winner_idx = turn % 3
+    second_idx = (turn + 1) % 3
+    third_idx = (turn + 2) % 3
+
+    scores = [0, 0, 0]
+    scores[winner_idx] = p1_pts
+    scores[second_idx] = p2_pts
+    scores[third_idx] = p3_pts
+
+    return scores, logs
+
+
+def execute_nim_tournament(database_path, upload_folder, num_stacks=2, p1_pts=4, p2_pts=1, p3_pts=-2, match_count=30):
+    conn = sqlite3.connect(database_path)
+    conn.row_factory = sqlite3.Row
+    db = conn.cursor()
+
+    active_subs = db.execute("""
+        SELECT u.username, s.filename, u.id as user_id
+        FROM users u
+        JOIN submissions s ON u.id = s.user_id
+        WHERE s.is_active = 1 AND u.role != 'admin'
+    """).fetchall()
+
+    if len(active_subs) < 3:
+        conn.close()
+        return "Nim Tournament requires at least 3 active bots to run."
+
+    db.execute("UPDATE users SET score = 0.0")
+    db.execute("INSERT INTO tournaments DEFAULT VALUES")
+    tournament_id = db.lastrowid
+
+    # Play every combination of 3 bots
+    for trio in itertools.combinations(active_subs, 3):
+        bot_paths = [os.path.join(upload_folder, b['username'], b['filename']) for b in trio]
+        match_scores = [0, 0, 0]
+        all_logs = []
+
+        for m in range(match_count):
+            # Rotate starting player each match for fairness
+            rotated_paths = bot_paths[m % 3:] + bot_paths[:m % 3]
+            
+            # Map the rotated score outputs back to the absolute 0,1,2 user indices
+            rotated_indices = [(i - (m % 3)) % 3 for i in range(3)] 
+
+            scores, logs = run_nim_match(*rotated_paths, num_stacks, p1_pts, p2_pts, p3_pts)
+
+            for i in range(3):
+                match_scores[i] += scores[rotated_indices[i]]
+
+            for log in logs:
+                log['game'] = m + 1
+            all_logs.extend(logs)
+
+        avg_scores = [s / match_count for s in match_scores]
+
+        db.execute(
+            "INSERT INTO matches (tournament_id, game_mode, user1, user2, user3, score1, score2, score3, round_by_round) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (tournament_id, 'nim', trio[0]['username'], trio[1]['username'], trio[2]['username'], avg_scores[0], avg_scores[1], avg_scores[2], json.dumps(all_logs))
+        )
+
+        for i in range(3):
+            db.execute("UPDATE users SET score = score + ? WHERE id = ?", (avg_scores[i], trio[i]['user_id']))
+
+    conn.commit()
+    conn.close()
+    return "Nim Tournament executed successfully!"
+
 
 def load_bot(bot_path, module_name):
     """Dynamically loads a bot script from a given file path."""

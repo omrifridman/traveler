@@ -35,15 +35,27 @@
             {% for match in matches %}
             <div class="bg-slate-950 border border-slate-800 p-4 rounded-lg flex justify-between items-center hover:border-indigo-500/40 transition shadow-inner">
                 <div>
-                    <span class="font-bold text-slate-200 text-sm">{{ match.user1 | clean_name }}</span>
-                    <span class="text-slate-500 font-semibold px-1.5 text-xs">VS</span>
-                    <span class="font-bold text-slate-200 text-sm">{{ match.user2 | clean_name }}</span>
-                    <div class="text-slate-500 mt-0.5 text-[11px] font-mono">Match Entry Profile: #{{ match.id }}</div>
+                    {% if match.game_mode == 'nim' %}
+                        <span class="font-bold text-slate-200 text-sm">{{ match.user1 | clean_name }}</span>
+                        <span class="text-slate-500 font-semibold px-1.5 text-xs">VS</span>
+                        <span class="font-bold text-slate-200 text-sm">{{ match.user2 | clean_name }}</span>
+                        <span class="text-slate-500 font-semibold px-1.5 text-xs">VS</span>
+                        <span class="font-bold text-slate-200 text-sm">{{ match.user3 | clean_name }}</span>
+                        <div class="text-emerald-500 mt-0.5 text-[11px] font-mono font-bold">NIM MODE | Match #{{ match.id }}</div>
+                    {% else %}
+                        <span class="font-bold text-slate-200 text-sm">{{ match.user1 | clean_name }}</span>
+                        <span class="text-slate-500 font-semibold px-1.5 text-xs">VS</span>
+                        <span class="font-bold text-slate-200 text-sm">{{ match.user2 | clean_name }}</span>
+                        <div class="text-slate-500 mt-0.5 text-[11px] font-mono">TRAVELER MODE | Match #{{ match.id }}</div>
+                    {% endif %}
                 </div>
                 <div class="flex items-center space-x-5">
                     <div class="text-right text-xs font-bold font-mono tracking-wide">
-                        <div class="text-emerald-400">+{{ match.score1 | round(1) }}</div>
-                        <div class="text-indigo-400">+{{ match.score2 | round(1) }}</div>
+                        <div class="text-emerald-400">{{ match.score1 | round(1) }}</div>
+                        <div class="text-indigo-400">{{ match.score2 | round(1) }}</div>
+                        {% if match.game_mode == 'nim' %}
+                            <div class="text-amber-400">{{ match.score3 | round(1) }}</div>
+                        {% endif %}
                     </div>
                     <a href="/visualizer/{{ match.id }}" class="bg-slate-800 border border-slate-700 px-3 py-1.5 rounded text-slate-300 hover:text-white hover:bg-indigo-600 hover:border-indigo-500 transition font-semibold text-xs shadow">
                         Analyze

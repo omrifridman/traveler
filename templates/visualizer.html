@@ -1,6 +1,5 @@
 {% extends "base.html" %}
 {% block content %}
-
 <div class="max-w-5xl mx-auto space-y-6">
     <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg lg:flex lg:justify-between lg:items-center space-y-4 lg:space-y-0">
         <div>
@@ -18,10 +17,14 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div class="space-y-1.5">
                 <label class="text-[11px] uppercase tracking-wider font-bold text-slate-400 ml-1">Select Tournament Pairing</label>
-                <select id="pairing-selector" onchange="switchMatchup(this.value)" class="w-full bg-slate-950 border-2 border-slate-800 rounded-lg text-sm text-slate-200 p-3 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition appearance-none cursor-pointer" style="background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2394a3b8%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.4-12.8z%22%2F%3E%3C%2Fsvg%3E'); background-repeat: no-repeat; background-position: right 1rem top 50%; background-size: 0.65rem auto;">
+                <select id="pairing-selector" onchange="switchMatchup(this.value)" class="w-full bg-slate-950 border-2 border-slate-800 rounded-lg text-sm text-slate-200 p-3 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition appearance-none cursor-pointer">
                     {% for pair in pairings %}
                         <option value="{{ pair.id }}" {% if pair.id == match.id %}selected{% endif %}>
-                            ⚔️ {{ pair.user1 | clean_name }} vs {{ pair.user2 | clean_name }} ({{ "%.1f"|format(pair.score1) }} - {{ "%.1f"|format(pair.score2) }})
+                            {% if pair.game_mode == 'nim' %}
+                                ⚔️ {{ pair.user1 | clean_name }} vs {{ pair.user2 | clean_name }} vs {{ pair.user3 | clean_name }} ({{ "%.1f"|format(pair.score1) }} | {{ "%.1f"|format(pair.score2) }} | {{ "%.1f"|format(pair.score3|default(0)) }})
+                            {% else %}
+                                ⚔️ {{ pair.user1 | clean_name }} vs {{ pair.user2 | clean_name }} ({{ "%.1f"|format(pair.score1) }} - {{ "%.1f"|format(pair.score2) }})
+                            {% endif %}
                         </option>
                     {% endfor %}
                 </select>
@@ -29,7 +32,7 @@
 
             <div class="space-y-1.5">
                 <label class="text-[11px] uppercase tracking-wider font-bold text-slate-400 ml-1">Isolate Simulation Game</label>
-                <select id="game-selector" onchange="filterGame(this.value)" class="w-full bg-slate-950 border-2 border-slate-800 rounded-lg text-sm text-slate-200 p-3 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition appearance-none cursor-pointer" style="background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2394a3b8%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.4-12.8z%22%2F%3E%3C%2Fsvg%3E'); background-repeat: no-repeat; background-position: right 1rem top 50%; background-size: 0.65rem auto;">
+                <select id="game-selector" onchange="filterGame(this.value)" class="w-full bg-slate-950 border-2 border-slate-800 rounded-lg text-sm text-slate-200 p-3 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none transition appearance-none cursor-pointer">
                     {% for g in unique_games %}
                         <option value="{{ g }}">Game Series #{{ g }}</option>
                     {% else %}
@@ -41,17 +44,24 @@
     </div>
 
     <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg">
-        <div class="grid grid-cols-2 gap-4 text-center">
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-center">
             <div class="p-4 bg-slate-950 rounded-lg border border-slate-800">
                 <div class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Bot 1 Submission</div>
                 <div class="text-xl font-bold text-emerald-400 mb-1">{{ match.user1 | clean_name }}</div>
-                <div class="text-sm text-slate-300">Norm. Index (0-100): <span class="font-mono font-bold">{{ "%.2f"|format(match.score1) }}</span></div>
+                <div class="text-sm text-slate-300">Norm. Index: <span class="font-mono font-bold">{{ "%.2f"|format(match.score1) }}</span></div>
             </div>
             <div class="p-4 bg-slate-950 rounded-lg border border-slate-800">
                 <div class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Bot 2 Submission</div>
                 <div class="text-xl font-bold text-indigo-400 mb-1">{{ match.user2 | clean_name }}</div>
-                <div class="text-sm text-slate-300">Norm. Index (0-100): <span class="font-mono font-bold">{{ "%.2f"|format(match.score2) }}</span></div>
+                <div class="text-sm text-slate-300">Norm. Index: <span class="font-mono font-bold">{{ "%.2f"|format(match.score2) }}</span></div>
             </div>
+            {% if match.game_mode == 'nim' %}
+            <div class="p-4 bg-slate-950 rounded-lg border border-slate-800">
+                <div class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">Bot 3 Submission</div>
+                <div class="text-xl font-bold text-amber-400 mb-1">{{ match.user3 | clean_name }}</div>
+                <div class="text-sm text-slate-300">Norm. Index: <span class="font-mono font-bold">{{ "%.2f"|format(match.score3|default(0)) }}</span></div>
+            </div>
+            {% endif %}
         </div>
     </div>
 
@@ -60,11 +70,19 @@
             <h3 class="text-md font-bold text-white">Target Tracking Summary</h3>
             <span id="active-game-badge" class="px-2.5 py-1 text-xs font-bold font-mono bg-indigo-950 text-indigo-300 border border-indigo-800 rounded">SHOWING GAME #1</span>
         </div>
-        
+
         <div class="max-h-[600px] overflow-y-auto">
-            {% if logs and logs|length > 0 %}
-                <table class="w-full text-left text-sm whitespace-nowrap">
-                    <thead class="sticky top-0 bg-slate-950 text-slate-400 border-b border-slate-800 z-10 shadow-sm">
+            <table class="w-full text-left text-sm whitespace-nowrap">
+                <thead class="sticky top-0 bg-slate-950 text-slate-400 border-b border-slate-800 z-10 shadow-sm">
+                    {% if match.game_mode == 'nim' %}
+                        <tr>
+                            <th class="p-4 font-semibold text-center w-24">Round</th>
+                            <th class="p-4 font-semibold text-center">Active Player</th>
+                            <th class="p-4 font-semibold text-center">Stack Index</th>
+                            <th class="p-4 font-semibold text-center">Amount Taken</th>
+                            <th class="p-4 font-semibold text-right">Remaining Stacks</th>
+                        </tr>
+                    {% else %}
                         <tr>
                             <th class="p-4 font-semibold text-center w-24">Round</th>
                             <th class="p-4 font-semibold text-emerald-400 text-center">{{ match.user1 | clean_name }} Bid</th>
@@ -72,88 +90,77 @@
                             <th class="p-4 font-semibold text-emerald-500 text-right">Raw Payout</th>
                             <th class="p-4 font-semibold text-indigo-500 text-right">Raw Payout</th>
                         </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-800/50">
-                        {% for log in logs %}
-                        <tr class="game-row hidden hover:bg-slate-800/30 transition" data-game="{{ log.game }}">
-                            <td class="p-4 text-slate-400 font-mono text-center">R{{ log.round }}</td>
-                            
-                            <td class="p-4 text-emerald-300 font-bold font-mono text-center">
-                                {% if log.move1 == 'ERROR' %}
-                                    <span class="text-rose-500">ERROR</span>
-                                {% else %}
-                                    {{ log.move1 }}
-                                {% endif %}
-                            </td>
-                            
-                            <td class="p-4 text-indigo-300 font-bold font-mono text-center">
-                                {% if log.move2 == 'ERROR' %}
-                                    <span class="text-rose-500">ERROR</span>
-                                {% else %}
-                                    {{ log.move2 }}
-                                {% endif %}
-                            </td>
-                            
-                            <td class="p-4 text-emerald-400 font-mono text-right">+{{ "%.2f"|format(log.payoff1) }}</td>
-                            <td class="p-4 text-indigo-400 font-mono text-right">+{{ "%.2f"|format(log.payoff2) }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-                <div id="no-game-data" class="hidden p-10 text-center text-slate-500">
-                    No matching round sequence tracking found for this specific game selection index.
-                </div>
-            {% else %}
-                <div class="p-10 text-center text-slate-500">
-                    <p class="mb-2">No data available for this tournament matchup sequence.</p>
-                    <p class="text-xs">If this run was created before applying the log-saving update, execute a new tournament cycle inside the Admin panel.</p>
-                </div>
-            {% endif %}
+                    {% endif %}
+                </thead>
+                <tbody id="log-tbody" class="divide-y divide-slate-800/50">
+                    <!-- Javascript populates this -->
+                </tbody>
+            </table>
+            <div id="no-game-data" class="hidden p-10 text-center text-slate-500">
+                No matching round sequence tracking found for this specific game selection index.
+            </div>
         </div>
     </div>
 </div>
 
 <script>
-// Requirement 2 Action Redirect
-  function switchMatchup(matchId) {
-      if (matchId) {
-          window.location.href = '/visualizer/' + matchId;
-      }
-  }
+    const matchLogs = {{ logs | tojson | safe }};
+    const isNim = {{ 'true' if match.game_mode == 'nim' else 'false' }};
 
-// Requirement 1 Client-side Filter Logic
-  function filterGame(gameNum) {
-      if (!gameNum) return;
-      
-      const rows = document.querySelectorAll('.game-row');
-      let visibleCount = 0;
-      
-      rows.forEach(row => {
-          if (row.getAttribute('data-game') === gameNum) {
-              row.classList.remove('hidden');
-              visibleCount++;
-          } else {
-              row.classList.add('hidden');
-          }
-      });
-      
-      // Dynamic Header Badge Text update
-      document.getElementById('active-game-badge').innerText = `SHOWING GAME #${gameNum}`;
-      
-      const noData = document.getElementById("no-game-data");
-      if (visibleCount === 0) {
-          if (noData) noData.classList.remove("hidden");
-      } else {
-          if (noData) noData.classList.add("hidden");
-      }
-  }
+    function switchMatchup(matchId) {
+        if (matchId) window.location.href = '/visualizer/' + matchId;
+    }
 
-  // Initialize visualizer view to show first game index safely on page load
-  document.addEventListener("DOMContentLoaded", function() {
-      const gameSelect = document.getElementById("game-selector");
-      if (gameSelect && gameSelect.options.length > 0) {
-          filterGame(gameSelect.value);
-      }
-  });
+    function filterGame(gameNum) {
+        if (!gameNum) return;
+        
+        const tbody = document.getElementById('log-tbody');
+        const noData = document.getElementById("no-game-data");
+        
+        // Only grab the logs for the specific game selected
+        const currentLogs = matchLogs.filter(log => log.game == gameNum);
+        
+        if (currentLogs.length === 0) {
+            tbody.innerHTML = '';
+            noData.classList.remove('hidden');
+            return;
+        }
+        
+        noData.classList.add('hidden');
+        document.getElementById('active-game-badge').innerText = `SHOWING GAME #${gameNum}`;
+
+        let html = '';
+        currentLogs.forEach(log => {
+            html += `<tr class="hover:bg-slate-800/30 transition">
+                <td class="p-4 text-slate-400 font-mono text-center">R${log.round}</td>`;
+                
+            if (isNim) {
+                let pColor = log.player == 1 ? "text-emerald-400" : (log.player == 2 ? "text-indigo-400" : "text-amber-400");
+                html += `<td class="p-4 font-bold font-mono text-center ${pColor}">Player ${log.player}</td>
+                         <td class="p-4 text-slate-300 font-mono text-center">${log.stack_idx}</td>
+                         <td class="p-4 text-slate-300 font-bold font-mono text-center">${log.amount}</td>
+                         <td class="p-4 text-slate-400 font-mono text-right">${log.remaining.join(' | ')}
+                            ${log.error ? `<span class="text-rose-500 ml-2">(ERROR: ${log.error})</span>` : ''}
+                         </td>`;
+            } else {
+                let m1 = log.move1 === 'ERROR' ? '<span class="text-rose-500">ERROR</span>' : log.move1;
+                let m2 = log.move2 === 'ERROR' ? '<span class="text-rose-500">ERROR</span>' : log.move2;
+                html += `<td class="p-4 text-emerald-300 font-bold font-mono text-center">${m1}</td>
+                         <td class="p-4 text-indigo-300 font-bold font-mono text-center">${m2}</td>
+                         <td class="p-4 text-emerald-400 font-mono text-right">+${parseFloat(log.payoff1).toFixed(2)}</td>
+                         <td class="p-4 text-indigo-400 font-mono text-right">+${parseFloat(log.payoff2).toFixed(2)}</td>`;
+            }
+            html += `</tr>`;
+        });
+        
+        tbody.innerHTML = html;
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        const gameSelect = document.getElementById("game-selector");
+        if (gameSelect && gameSelect.options.length > 0) {
+            filterGame(gameSelect.value);
+        }
+    });
 </script>
 {% endblock %}
