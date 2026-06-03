@@ -65,7 +65,7 @@ def run_nim_match(bot1_path, bot2_path, bot3_path, num_stacks, p1_pts, p2_pts, p
     return scores, logs
 
 
-def execute_nim_tournament(database_path, upload_folder, num_stacks=2, p1_pts=4, p2_pts=1, p3_pts=-2, match_count=30):
+def execute_nim_tournament(database_path, upload_folder, num_stacks=2, p1_pts=4, p2_pts=1, p3_pts=-2, match_count=20):
     conn = sqlite3.connect(database_path)
     conn.row_factory = sqlite3.Row
     db = conn.cursor()

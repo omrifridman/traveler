@@ -23,3 +23,11 @@ def make_move(my_history, opponent_history, round_num, L, H, R, inflation_rate):
         return max(L, last_opponent_move)
     
     return H
+
+def make_nim_move(stacks):
+    # E.g. [1200, 1500] 
+    # Returns (stack_index, amount_to_take)
+    
+    # Simple logic: take 1 item from the largest stack
+    max_stack_idx = stacks.index(max(stacks))
+    return max_stack_idx, 1

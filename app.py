@@ -248,7 +248,7 @@ def admin():
                 p1 = int(request.form.get('p1_score') or 4)
                 p2 = int(request.form.get('p2_score') or 1)
                 p3 = int(request.form.get('p3_score') or -2)
-                match_count = int(request.form.get('match_count') or 30)
+                match_count = int(request.form.get('match_count') or 20)
                 message = execute_nim_tournament(DATABASE, app.config['UPLOAD_FOLDER'], stacks, p1, p2, p3, match_count)
         except ValueError:
             message = "SYSTEM ERROR: Invalid inputs detected."

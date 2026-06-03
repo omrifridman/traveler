@@ -67,7 +67,7 @@
             <!-- Global Parameters -->
             <div class="space-y-1.5 mt-4">
                 <label class="block text-slate-400 font-semibold text-xs tracking-wide">Match Series Count</label>
-                <input type="number" name="match_count" value="50" required class="w-full bg-slate-950 border border-slate-800 rounded-md p-2.5 focus:outline-none focus:border-indigo-500 text-white font-mono text-sm transition">
+                <input type="number" id="match_count_input" name="match_count" value="50" required class="w-full bg-slate-950 border border-slate-800 rounded-md p-2.5 focus:outline-none focus:border-indigo-500 text-white font-mono text-sm transition">
             </div>
 
             <div class="flex items-center space-x-2 py-3 bg-slate-950/50 px-3 rounded-lg border border-slate-800">
@@ -85,12 +85,16 @@
         <script>
             function toggleGameMode() {
                 const mode = document.getElementById('game_mode').value;
+                const matchCountInput = document.getElementById('match_count_input');
+                
                 if (mode === 'nim') {
                     document.getElementById('traveler_params').classList.add('hidden');
                     document.getElementById('nim_params').classList.remove('hidden');
+                    matchCountInput.value = "20";
                 } else {
                     document.getElementById('traveler_params').classList.remove('hidden');
                     document.getElementById('nim_params').classList.add('hidden');
+                    matchCountInput.value = "50";
                 }
             }
         </script>
