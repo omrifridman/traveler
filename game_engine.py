@@ -11,7 +11,7 @@ def run_nim_match(bot1_path, bot2_path, bot3_path, num_stacks, p1_pts, p2_pts, p
         raise ValueError("Failed to load one or more bots.")
 
     # Initialize stacks with > 1000 items
-    stacks = [random.randint(1001, 2000) for _ in range(num_stacks)]
+    stacks = [100 for _ in range(num_stacks)]
     turn = 0
     logs = []
 

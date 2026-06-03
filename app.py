@@ -219,7 +219,7 @@ def scoreboard():
         ORDER BY u.score DESC
     """).fetchall()
     
-    matches = db.execute("SELECT * FROM matches ORDER BY id DESC LIMIT 20").fetchall()
+    matches = db.execute("SELECT * FROM matches ORDER BY id DESC LIMIT 200").fetchall()
     
     return render_template('scoreboard.html', users=users, matches=matches)
 
